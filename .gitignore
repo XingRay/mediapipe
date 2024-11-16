@@ -8,3 +8,5 @@ node_modules/
 bazel_out
 .vs
 .idea
+.clwb
+.vscode

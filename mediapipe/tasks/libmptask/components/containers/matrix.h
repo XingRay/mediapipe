@@ -16,11 +16,47 @@ limitations under the License.
 #ifndef MEDIAPIPE_TASKS_LIBMPTASK_COMPONENTS_CONTAINERS_MATRIX_H_
 #define MEDIAPIPE_TASKS_LIBMPTASK_COMPONENTS_CONTAINERS_MATRIX_H_
 
-#include "Eigen/Core"
+#include <stdint.h>
+#include <stdexcept>
+
+#include "mediapipe/tasks/libmptask/utils/cpp_export.h"
 
 namespace libmptask {
-    typedef Eigen::MatrixXf Matrix;
-}
+
+class MP_CPP_API Matrix {
+
+private:
+    uint32_t mRows;
+    uint32_t mCols;
+    float* mData;
+
+public:
+    Matrix();
+    Matrix(uint32_t rows, uint32_t cols);
+
+    Matrix(const Matrix& other);
+    
+    Matrix(Matrix&& other) noexcept;
+
+    Matrix& operator=(const Matrix& other);
+    
+    Matrix& operator=(Matrix&& other) noexcept;
+
+    ~Matrix();
+
+    void resize(int32_t rows, int32_t cols);
+
+    float& operator()(uint32_t row, uint32_t col);
+    const float& operator()(uint32_t row, uint32_t col) const;
+
+    uint32_t rows() const;
+    uint32_t cols() const;
+
+    float* data() const;
+};
+
+
+}  // namespace libmptask
 
 
 #endif  // MEDIAPIPE_TASKS_LIBMPTASK_COMPONENTS_CONTAINERS_MATRIX_H_

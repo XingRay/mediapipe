@@ -17,12 +17,17 @@ limitations under the License.
 
 #include <memory>
 #include <string>
+#include <variant>
 
-#include "mediapipe/tasks/libmptask/core/base_options.h"
-#include "mediapipe/tasks/cc/core/base_options.h"
+#include "absl/log/absl_log.h"
+#include "mediapipe/calculators/tensor/inference_calculator.pb.h"
+#include "mediapipe/tasks/cc/core/proto/acceleration.pb.h"
+#include "mediapipe/tasks/cc/core/proto/base_options.pb.h"
+#include "mediapipe/tasks/cc/core/proto/external_file.pb.h"
 
 namespace libmptask {
 
+// c -> cpp
 void CppConvertToBaseOptions(const BaseOptions& in,
                              mediapipe::tasks::core::BaseOptions* out) {
   out->model_asset_buffer =
@@ -33,6 +38,13 @@ void CppConvertToBaseOptions(const BaseOptions& in,
           : nullptr;
   out->model_asset_path =
       in.model_asset_path ? std::string(in.model_asset_path) : "";
+}
+
+// c-> cpp -> proto
+mediapipe::tasks::core::proto::BaseOptions baseOptionsConvertToProto(BaseOptions* base_options){
+    mediapipe::tasks::core::BaseOptions cppBaseOptions;
+    CppConvertToBaseOptions(*base_options, &cppBaseOptions);
+    return ConvertBaseOptionsToProto(&cppBaseOptions);
 }
 
 }  // namespace mediapipe::tasks::c::core

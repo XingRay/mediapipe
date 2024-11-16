@@ -1,4 +1,4 @@
-# Copyright 2023 The MediaPipe Authors.
+# Copyright 2022 The MediaPipe Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,22 +17,7 @@ package(default_visibility = ["//mediapipe/tasks:internal"])
 licenses(["notice"])
 
 cc_library(
-    name = "common",
-    hdrs = ["common.h"],
-)
-
-cc_library(
-    name = "image_processing_options",
-    hdrs = ["image_processing_options.h"],
-)
-
-cc_library(
-    name = "image_processing_options_converter",
-    hdrs = ["image_processing_options_converter.h"],
-    srcs=["image_processing_options_converter.cc"],
-    deps = [
-        "//mediapipe/tasks/cc/vision/core:image_processing_options",
-        "//mediapipe/tasks/libmptask/vision/core:image_processing_options",
-        "//mediapipe/tasks/libmptask/components/containers:rect_converter",
-    ],
+    name = "cpp_export",
+    hdrs = ["cpp_export.h"],
+    visibility = ["//visibility:public"],
 )

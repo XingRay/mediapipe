@@ -34,8 +34,7 @@ void MatrixDataProtoFromMatrix(const Matrix& matrix, MatrixData* matrix_data) {
 }
 
 void MatrixFromMatrixDataProto(const MatrixData& matrix_data, Matrix* matrix) {
-  ABSL_CHECK_EQ(matrix_data.rows() * matrix_data.cols(),
-                matrix_data.packed_data_size());
+  ABSL_CHECK_EQ(matrix_data.rows() * matrix_data.cols(), matrix_data.packed_data_size());
   if (matrix_data.layout() == MatrixData::ROW_MAJOR) {
     matrix->resize(matrix_data.cols(), matrix_data.rows());
   } else {

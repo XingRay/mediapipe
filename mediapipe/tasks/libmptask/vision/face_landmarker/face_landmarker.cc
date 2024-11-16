@@ -1,408 +1,273 @@
-//
-// Created by leixing on 2024/11/5.
-//
+/* Copyright 2023 The MediaPipe Authors.
 
-#include <iostream>
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "mediapipe/tasks/libmptask/vision/face_landmarker/face_landmarker.h"
+
+#include <utility>
 #include <memory>
 
+#include "mediapipe/framework/api2/builder.h"
+#include "mediapipe/framework/formats/classification.pb.h"
 #include "mediapipe/framework/formats/image.h"
-#include "mediapipe/framework/formats/image_frame.h"
-#include "mediapipe/framework/port/status.h"
+#include "mediapipe/framework/formats/landmark.pb.h"
+#include "mediapipe/framework/formats/matrix.h"
+#include "mediapipe/framework/formats/matrix_data.pb.h"
+#include "mediapipe/framework/formats/rect.pb.h"
 
-#include "mediapipe/tasks/cc/components/containers/landmark.h"
+#include "mediapipe/tasks/cc/components/containers/classification_result.h"
+#include "mediapipe/tasks/cc/core/base_task_api.h"
+#include "mediapipe/tasks/cc/core/task_runner.h"
+#include "mediapipe/tasks/cc/core/utils.h"
+#include "mediapipe/tasks/cc/vision/core/base_vision_task_api.h"
 #include "mediapipe/tasks/cc/vision/core/image_processing_options.h"
+#include "mediapipe/tasks/cc/vision/core/vision_task_api_factory.h"
+#include "mediapipe/tasks/cc/vision/face_detector/proto/face_detector_graph_options.pb.h"
+#include "mediapipe/tasks/cc/vision/face_geometry/proto/face_geometry.pb.h"
+#include "mediapipe/tasks/cc/vision/face_landmarker/proto/face_landmarker_graph_options.pb.h"
+#include "mediapipe/tasks/cc/vision/face_landmarker/proto/face_landmarks_detector_graph_options.pb.h"
 #include "mediapipe/tasks/cc/vision/face_landmarker/face_landmarker.h"
-#include "mediapipe/tasks/cc/vision/face_landmarker/face_landmarker_result.h"
-#include "mediapipe/tasks/cc/vision/core/running_mode.h"
 
 #include "mediapipe/tasks/libmptask/core/base_options_converter.h"
-#include "mediapipe/tasks/libmptask/vision/face_landmarker/face_landmarker.h"
+#include "mediapipe/tasks/libmptask/vision/core/image_processing_options_converter.h"
+#include "mediapipe/tasks/libmptask/vision/face_landmarker/face_landmarker_result_converter.h"
 #include "mediapipe/tasks/libmptask/vision/face_landmarker/face_landmarker_result.h"
-#include "mediapipe/tasks/libmptask/vision/utils/image_utils.h"
+#include "mediapipe/tasks/libmptask/vision/face_landmarker/face_landmarker_options_converter.h"
 
-using namespace ::mediapipe::tasks::components::containers;
+using FaceLandmarkerGraphOptionsProto = ::mediapipe::tasks::vision::face_landmarker::proto::FaceLandmarkerGraphOptions;
+using ::mediapipe::CalculatorGraphConfig;
+using CppFaceLandmarkerOptions = ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerOptions;
+using CppImageProcessingOptions = ::mediapipe::tasks::vision::core::ImageProcessingOptions;
+using namespace ::mediapipe;
 using namespace ::mediapipe::tasks::vision;
-
-typedef ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult CppFaceLandmarkerResult;
-typedef ::mediapipe::tasks::vision::core::ImageProcessingOptions CppImageProcessingOptions;
-
 
 namespace libmptask {
 
-    void printCppResult(const ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult& result) {
-        // Output face landmarks
-        std::cout << "face_landmarks_count: " << result.face_landmarks.size() << std::endl;
-        for (const auto& landmarks : result.face_landmarks) {
-            std::cout << "Detected landmarks: " << std::endl;
-            for (const auto& landmark : landmarks.landmarks) {
-                std::cout << "( " << landmark.x << ", " << landmark.y << ", " << landmark.z << " )" << std::endl;
-            }
-        }
+constexpr char kFaceLandmarkerGraphTypeName[] = "mediapipe.tasks.vision.face_landmarker.FaceLandmarkerGraph";
+constexpr char kImageTag[] = "IMAGE";
+constexpr char kImageInStreamName[] = "image_in";
+constexpr char kImageOutStreamName[] = "image_out";
+constexpr char kNormRectTag[] = "NORM_RECT";
+constexpr char kNormRectStreamName[] = "norm_rect_in";
+constexpr char kNormLandmarksTag[] = "NORM_LANDMARKS";
+constexpr char kNormLandmarksStreamName[] = "norm_landmarks";
+constexpr char kBlendshapesTag[] = "BLENDSHAPES";
+constexpr char kBlendshapesStreamName[] = "blendshapes";
+constexpr char kFaceGeometryTag[] = "FACE_GEOMETRY";
+constexpr char kFaceGeometryStreamName[] = "face_geometry";
+constexpr int kMicroSecondsPerMilliSecond = 1000;
 
-        // Output face blendshapes if available
-        if (result.face_blendshapes.has_value()) {
-            std::cout << "face_blendshapes_count: " << result.face_blendshapes->size() << std::endl;
-            for (const auto& blendshape : *result.face_blendshapes) {
-                std::cout << "Detected face blendshape: " << std::endl;
-                std::cout << "head_index:" << blendshape.head_index << std::endl;
-                if (blendshape.head_name.has_value()) {
-                    std::cout << "head_name:" << *blendshape.head_name << std::endl;
-                }
-                else {
-                    std::cout << "head_name has no value" << std::endl;
-                }
-
-                for (const auto& category : blendshape.categories) {
-                    std::cout << "index: " << category.index << ", score: " << category.score;
-
-                    std::cout << ", category_name: ";
-                    if (category.category_name.has_value()) {
-                        std::cout << *category.category_name;
-                    }
-                    else {
-                        std::cout << "N/A";
-                    }
-
-                    std::cout << "display_name: ";
-                    if (category.display_name.has_value()) {
-                        std::cout << *category.display_name;
-                    }
-                    else {
-                        std::cout << "N/A";
-                    }
-
-                    std::cout << std::endl;
-                }
-            }
-        }
-        else {
-            std::cout << "No face blendshapes detected." << std::endl;
-        }
-
-        // Output facial transformation matrices if available
-        if (result.facial_transformation_matrixes.has_value()) {
-            std::cout << "facial_transformation_matrixes_count: " << result.facial_transformation_matrixes->size() << std::endl;
-            for (const auto& matrix : *result.facial_transformation_matrixes) {
-                std::cout << "Matrix (" << matrix.rows() << "x" << matrix.cols() << "):" << std::endl;
-                for (int row = 0; row < matrix.rows(); ++row) {
-                    for (int col = 0; col < matrix.cols(); ++col) {
-                        std::cout << matrix(row, col) << " ";
-                    }
-                    std::cout << std::endl;
-                }
-            }
-        }
-        else {
-            std::cout << "No facial transformation matrices detected." << std::endl;
-        }
-    }
-
-    void printResult(const libmptask::FaceLandmarkerResult& result) {
-        // Output face landmarks
-        std::cout << "face_landmarks_count: " << result.face_landmarks.size() << std::endl;
-        for (const auto& landmarks : result.face_landmarks) {
-            std::cout << "Detected landmarks: " << std::endl;
-            for (const auto& landmark : landmarks.landmarks) {
-                std::cout << "( " << landmark.x << ", " << landmark.y << ", " << landmark.z << " )" << std::endl;
-            }
-        }
-
-        // Output face blendshapes if available
-        if (result.face_blendshapes.has_value()) {
-            std::cout << "face_blendshapes_count: " << result.face_blendshapes->size() << std::endl;
-            for (const auto& blendshape : *result.face_blendshapes) {
-                std::cout << "Detected face blendshape: " << std::endl;
-                std::cout << "head_index:" << blendshape.head_index << std::endl;
-                if (blendshape.head_name.has_value()) {
-                    std::cout << "head_name:" << *blendshape.head_name << std::endl;
-                }
-                else {
-                    std::cout << "head_name has no value" << std::endl;
-                }
-
-                for (const auto& category : blendshape.categories) {
-                    std::cout << "index: " << category.index << ", score: " << category.score;
-
-                    std::cout << ", category_name: ";
-                    if (category.category_name.has_value()) {
-                        std::cout << *category.category_name;
-                    }
-                    else {
-                        std::cout << "N/A";
-                    }
-
-                    std::cout << "display_name: ";
-                    if (category.display_name.has_value()) {
-                        std::cout << *category.display_name;
-                    }
-                    else {
-                        std::cout << "N/A";
-                    }
-
-                    std::cout << std::endl;
-                }
-            }
-        }
-        else {
-            std::cout << "No face blendshapes detected." << std::endl;
-        }
-
-        // Output facial transformation matrices if available
-        if (result.facial_transformation_matrixes.has_value()) {
-            std::cout << "facial_transformation_matrixes_count: " << result.facial_transformation_matrixes->size() << std::endl;
-            for (const auto& matrix : *result.facial_transformation_matrixes) {
-                std::cout << "Matrix (" << matrix.rows() << "x" << matrix.cols() << "):" << std::endl;
-                for (int row = 0; row < matrix.rows(); ++row) {
-                    for (int col = 0; col < matrix.cols(); ++col) {
-                        std::cout << matrix(row, col) << " ";
-                    }
-                    std::cout << std::endl;
-                }
-            }
-        }
-        else {
-            std::cout << "No facial transformation matrices detected." << std::endl;
-        }
-    }
-
-    inline
-    ::mediapipe::ImageFormat::Format imageFormatToCppImageFormat(ImageFormat imageFormat) {
-        return static_cast<::mediapipe::ImageFormat::Format>(static_cast<int>(imageFormat));
-    }
-
-    inline
-    ImageFormat cppImageFormatToImageFormat(::mediapipe::ImageFormat::Format imageFormat) {
-        return static_cast<ImageFormat>(static_cast<int>(imageFormat));
-    }
-
-    /*absl::StatusOr<FaceLandmarkerResult> Detect(
-        Image image,
-        std::optional<core::ImageProcessingOptions> image_processing_options =
-        std::nullopt);*/
-    FaceLandmarkerResult cppDetect(const FaceLandmarker* faceLandmarker, const ::mediapipe::Image& image, std::optional<CppImageProcessingOptions> image_processing_options) {
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarker* cppFaceLandmarker = static_cast<::mediapipe::tasks::vision::face_landmarker::FaceLandmarker*>(faceLandmarker->getFaceLandmarker());
-        absl::StatusOr<::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult> result_status = cppFaceLandmarker->Detect(image, image_processing_options);
-        if (!result_status.ok()) {
-            std::cerr << "Detection failed: " << result_status.status().message() << std::endl;
-            // return nullptr;
-            return FaceLandmarkerResult();
-        }
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult cppResult = result_status.value();
-        return *reinterpret_cast<const libmptask::FaceLandmarkerResult*>(&cppResult);
-    }
-
-    /*absl::StatusOr<FaceLandmarkerResult> DetectForVideo(
-        Image image, int64_t timestamp_ms,
-        std::optional<core::ImageProcessingOptions> image_processing_options =
-        std::nullopt);*/
-    FaceLandmarkerResult cppDetectForVideo(const FaceLandmarker* faceLandmarker, const ::mediapipe::Image& image, int64_t timestamp_ms, std::optional<CppImageProcessingOptions> image_processing_options) {
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarker* cppFaceLandmarker = static_cast<::mediapipe::tasks::vision::face_landmarker::FaceLandmarker*>(faceLandmarker->getFaceLandmarker());
-        absl::StatusOr<::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult> result_status = cppFaceLandmarker->DetectForVideo(image, timestamp_ms, image_processing_options);
-        if (!result_status.ok()) {
-            std::cerr << "Detection failed: " << result_status.status().message() << std::endl;
-            // return nullptr;
-            return FaceLandmarkerResult();
-        }
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerResult cppResult = result_status.value();
-        return *reinterpret_cast<const libmptask::FaceLandmarkerResult*>(&cppResult);
-    }
-
-    /*absl::Status DetectAsync(Image image, int64_t timestamp_ms,
-        std::optional<core::ImageProcessingOptions>
-        image_processing_options = std::nullopt);*/
-    int cppDetectAsync(const FaceLandmarker* faceLandmarker, const ::mediapipe::Image& image, int64_t timestamp_ms,  std::optional<CppImageProcessingOptions> image_processing_options) {
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarker* cppFaceLandmarker = static_cast<::mediapipe::tasks::vision::face_landmarker::FaceLandmarker*>(faceLandmarker->getFaceLandmarker());
-        absl::Status result_status = cppFaceLandmarker->DetectAsync(image, timestamp_ms, image_processing_options);
-        if (!result_status.ok()) {
-            std::cerr << "Detection failed: " << result_status.message() << std::endl;
-            // return nullptr;
-            return -1;
-        }
-        return 0;
-    }
-
-    //// Shuts down the FaceLandmarker when all works are done.
-    //absl::Status Close() { return runner_->Close(); }
-    int cppClose(const FaceLandmarker* faceLandmarker) {
-        ::mediapipe::tasks::vision::face_landmarker::FaceLandmarker* cppFaceLandmarker = static_cast<::mediapipe::tasks::vision::face_landmarker::FaceLandmarker*>(faceLandmarker->getFaceLandmarker());
-        absl::Status result_status = cppFaceLandmarker->Close();
-        if (!result_status.ok()) {
-            std::cerr << "Detection failed: " << result_status.message() << std::endl;
-            // return nullptr;
-            return -1;
-        }
-        return 0;
-    }
-
-    int CppProcessError(absl::Status status, char** error_msg) {
-        if (error_msg) {
-            *error_msg = strdup(status.ToString().c_str());
-        }
-        return status.raw_code();
-    }
-
-    void CppConvertToFaceLandmarkerOptions(const FaceLandmarkerOptions& in, ::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerOptions* out) {
-        out->num_faces = in.num_faces;
-        out->min_face_detection_confidence = in.min_face_detection_confidence;
-        out->min_face_presence_confidence = in.min_face_presence_confidence;
-        out->min_tracking_confidence = in.min_tracking_confidence;
-        out->output_face_blendshapes = in.output_face_blendshapes;
-        out->output_facial_transformation_matrixes =
-            in.output_facial_transformation_matrixes;
-    }
-
-    MP_CPP_EXPORT FaceLandmarker* FaceLandmarker::create(FaceLandmarkerOptions& options, char** error_msg) {
-        auto cpp_options = std::make_unique<::mediapipe::tasks::vision::face_landmarker::FaceLandmarkerOptions>();
-        
-        CppConvertToBaseOptions(options.base_options, &cpp_options->base_options);
-        CppConvertToFaceLandmarkerOptions(options, cpp_options.get());
-        cpp_options->running_mode = static_cast<::mediapipe::tasks::vision::core::RunningMode>(options.running_mode);
-
-
-        // Enable callback for processing live stream data when the running mode is
-        // set to RunningMode::LIVE_STREAM.
-        if (cpp_options->running_mode == RunningMode::LIVE_STREAM) {
-            if (options.result_callback == nullptr) {
-                const absl::Status status = absl::InvalidArgumentError("Provided null pointer to callback function.");
-                ABSL_LOG(ERROR) << "Failed to create FaceLandmarker: " << status;
-                CppProcessError(status, error_msg);
-                return nullptr;
-            }
-
-            FaceLandmarkerOptions::result_callback_fn result_callback = options.result_callback;
-
-            cpp_options->result_callback = [result_callback](absl::StatusOr<CppFaceLandmarkerResult> cpp_result, const ::mediapipe::Image& image, int64_t timestamp) {
-                char* error_msg = nullptr;
-
-                if (!cpp_result.ok()) {
-                    ABSL_LOG(ERROR) << "Detection failed: " << cpp_result.status();
-                    CppProcessError(cpp_result.status(), &error_msg);
-                    result_callback(nullptr, nullptr, timestamp, error_msg);
-                    free(error_msg);
-                    return;
-                }
-
-                CppFaceLandmarkerResult cppResult = cpp_result.value();
-                FaceLandmarkerResult* result = reinterpret_cast<FaceLandmarkerResult*>(&cppResult);
-
-                const auto& image_frame = image.GetImageFrameSharedPtr();
-                MpImage mp_image;
-                mp_image.type = MpImage::IMAGE_FRAME;
-                mp_image.image_frame.format = cppImageFormatToImageFormat(image_frame->Format());
-                mp_image.image_frame.image_buffer = image_frame->PixelData();
-                mp_image.image_frame.width = image_frame->Width();
-                mp_image.image_frame.height = image_frame->Height();
-
-                result_callback(result, &mp_image, timestamp, /* error_msg= */ nullptr);
-            };
-        }
-
-        auto landmarker = ::mediapipe::tasks::vision::face_landmarker::FaceLandmarker::Create(std::move(cpp_options));
-        if (!landmarker.ok()) {
-            ABSL_LOG(ERROR) << "Failed to create FaceLandmarker: "
-                << landmarker.status();
-            CppProcessError(landmarker.status(), error_msg);
-            return nullptr;
-        }
-
-        FaceLandmarker* faceLandmarker = new FaceLandmarker();
-        faceLandmarker->faceLandmarker = landmarker->release();
-
-        return faceLandmarker;
-    }
-
-    FaceLandmarker::FaceLandmarker() {
-
-    }
-
-    FaceLandmarker::~FaceLandmarker() {
-        // 使用别名以避免与成员变量 face_landmarker 混淆
-        namespace mp_face = ::mediapipe::tasks::vision::face_landmarker;
-
-        // 转换 this->face_landmarker，确保编译器将它识别为成员变量
-        auto cpp_landmarker = static_cast<mp_face::FaceLandmarker*>(this->faceLandmarker);
-
-
-        //auto cpp_landmarker = static_cast<mediapipe::tasks::vision::face_landmarker::FaceLandmarker*>(this->face_landmarker);
-        auto result = cpp_landmarker->Close();
-        if (!result.ok()) {
-            ABSL_LOG(ERROR) << "Failed to close FaceLandmarker: " << result;
-            return;
-        }
-        delete cpp_landmarker;
-    }
-
-    FaceLandmarkerResult FaceLandmarker::detect(const char* path, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = DecodeImageFromFile(path);
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return FaceLandmarkerResult();
-        }
-        return cppDetect(this, image_status.value(), *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    FaceLandmarkerResult FaceLandmarker::detect(const uint8_t* pixel_data, int width, int height, int channels, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, channels);
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return FaceLandmarkerResult();
-        }
-        return cppDetect(this, image_status.value(), *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    FaceLandmarkerResult FaceLandmarker::detect(const uint8_t* pixel_data, int width, int height, ImageFormat format, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, imageFormatToCppImageFormat(format));
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return FaceLandmarkerResult();
-        }
-        return cppDetect(this, image_status.value(), *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    FaceLandmarkerResult FaceLandmarker::detectForVideo(const uint8_t* pixel_data, int width, int height, int channels, int64_t timestamp_ms, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, channels);
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return FaceLandmarkerResult();
-        }
-        return cppDetectForVideo(this, image_status.value(), timestamp_ms, *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    FaceLandmarkerResult FaceLandmarker::detectForVideo(const uint8_t* pixel_data, int width, int height, ImageFormat format, int64_t timestamp_ms, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, imageFormatToCppImageFormat(format));
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return FaceLandmarkerResult();
-        }
-        return cppDetectForVideo(this, image_status.value(), timestamp_ms, *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    int FaceLandmarker::detectAsync(const uint8_t* pixel_data, int width, int height, int channels, int64_t timestamp_ms, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, channels);
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return -1;
-        }
-        return cppDetectAsync(this, image_status.value(), timestamp_ms, *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    int FaceLandmarker::detectAsync(const uint8_t* pixel_data, int width, int height, ImageFormat format, int64_t timestamp_ms, std::optional<ImageProcessingOptions> image_processing_options) {
-        absl::StatusOr <::mediapipe::Image> image_status = CreateImageFromBuffer(pixel_data, width, height, imageFormatToCppImageFormat(format));
-        if (!image_status.ok()) {
-            std::cerr << "Failed to load image: " << image_status.status().message() << std::endl;
-            //return nullptr;
-            return -1;
-        }
-        return cppDetectAsync(this, image_status.value(), timestamp_ms, *reinterpret_cast<std::optional<CppImageProcessingOptions>*>(&image_processing_options));
-    }
-
-    void FaceLandmarker::close() {
-        cppClose(this);
-    }
+// Creates a MediaPipe graph config that contains a subgraph node of
+// "mediapipe.tasks.vision.face_ladnamrker.FaceLandmarkerGraph". If the task is
+// running in the live stream mode, a "FlowLimiterCalculator" will be added to
+// limit the number of frames in flight.
+CalculatorGraphConfig CreateGraphConfig(
+    std::unique_ptr<FaceLandmarkerGraphOptionsProto> options,
+    bool output_face_blendshapes, bool output_facial_transformation_matrixes,
+    bool enable_flow_limiting) {
+  api2::builder::Graph graph;
+  auto& subgraph = graph.AddNode(kFaceLandmarkerGraphTypeName);
+  subgraph.GetOptions<FaceLandmarkerGraphOptionsProto>().Swap(options.get());
+  graph.In(kImageTag).SetName(kImageInStreamName);
+  graph.In(kNormRectTag).SetName(kNormRectStreamName);
+  subgraph.Out(kNormLandmarksTag).SetName(kNormLandmarksStreamName) >>
+      graph.Out(kNormLandmarksTag);
+  subgraph.Out(kImageTag).SetName(kImageOutStreamName) >> graph.Out(kImageTag);
+  if (output_face_blendshapes) {
+    subgraph.Out(kBlendshapesTag).SetName(kBlendshapesStreamName) >>
+        graph.Out(kBlendshapesTag);
+  }
+  if (output_facial_transformation_matrixes) {
+    subgraph.Out(kFaceGeometryTag).SetName(kFaceGeometryStreamName) >>
+        graph.Out(kFaceGeometryTag);
+  }
+  if (enable_flow_limiting) {
+    return tasks::core::AddFlowLimiterCalculator(
+        graph, subgraph, {kImageTag, kNormRectTag}, kNormLandmarksTag);
+  }
+  graph.In(kImageTag) >> subgraph.In(kImageTag);
+  graph.In(kNormRectTag) >> subgraph.In(kNormRectTag);
+  return graph.GetConfig();
 }
+
+// Converts the user-facing FaceLandmarkerOptions struct to the internal
+// FaceLandmarkerGraphOptions proto.
+std::unique_ptr<FaceLandmarkerGraphOptionsProto> ConvertFaceLandmarkerGraphOptionsProto(FaceLandmarkerOptions* options) {
+  auto options_proto = std::make_unique<FaceLandmarkerGraphOptionsProto>();
+  auto base_options_proto = std::make_unique<tasks::core::proto::BaseOptions>(baseOptionsConvertToProto(&(options->base_options)));
+  options_proto->mutable_base_options()->Swap(base_options_proto.get());
+  options_proto->mutable_base_options()->set_use_stream_mode(options->running_mode != RunningMode::IMAGE);
+
+  // Configure face detector options.
+  auto* face_detector_graph_options = options_proto->mutable_face_detector_graph_options();
+  face_detector_graph_options->set_num_faces(options->num_faces);
+  face_detector_graph_options->set_min_detection_confidence(
+      options->min_face_detection_confidence);
+
+  // Configure face landmark detector options.
+  options_proto->set_min_tracking_confidence(options->min_tracking_confidence);
+  auto* face_landmarks_detector_graph_options =
+      options_proto->mutable_face_landmarks_detector_graph_options();
+  face_landmarks_detector_graph_options->set_min_detection_confidence(
+      options->min_face_presence_confidence);
+
+  return options_proto;
+}
+
+FaceLandmarkerResult GetFaceLandmarkerResultFromPacketMap(const tasks::core::PacketMap& packet_map) {
+  const auto& face_landmarks = packet_map.at(kNormLandmarksStreamName).Get<std::vector<NormalizedLandmarkList>>();
+  std::optional<std::vector<ClassificationList>> face_blendshapes;
+  if (packet_map.find(kBlendshapesStreamName) != packet_map.end()) {
+    face_blendshapes = packet_map.at(kBlendshapesStreamName).Get<std::vector<ClassificationList>>();
+  }
+  std::optional<std::vector<MatrixData>> matrix_data_list;
+  if (packet_map.find(kFaceGeometryStreamName) != packet_map.end()) {
+    const auto& face_geometry_list = packet_map.at(kFaceGeometryStreamName).Get<std::vector<face_geometry::proto::FaceGeometry>>();
+    matrix_data_list = std::vector<MatrixData>(face_geometry_list.size());
+    std::transform(face_geometry_list.begin(), face_geometry_list.end(),
+                   matrix_data_list->begin(),
+                   [](const face_geometry::proto::FaceGeometry& face_geometry) {
+                     return face_geometry.pose_transform_matrix();
+                   });
+  }
+  return ConvertToFaceLandmarkerResult(
+      /* face_landmarks_proto = */ face_landmarks,
+      /* face_blendshapes_proto= */ face_blendshapes,
+      /* facial_transformation_matrixes_proto= */ matrix_data_list);
+}
+
+absl::StatusOr<std::unique_ptr<FaceLandmarker>> FaceLandmarker::Create(std::unique_ptr<FaceLandmarkerOptions> options) {
+  tasks::core::PacketsCallback packets_callback = nullptr;
+  if (options->result_callback) {
+    auto result_callback = options->result_callback;
+    packets_callback = [=](absl::StatusOr<tasks::core::PacketMap> packet_map) {
+      if (!packet_map.ok()) {
+        result_callback(nullptr, nullptr, Timestamp::Unset().Value(), nullptr);
+        return;
+      }
+      if (packet_map->at(kImageOutStreamName).IsEmpty()) {
+        // output is empty, do nothing
+        return;
+      }
+      Packet image_packet = packet_map->at(kImageOutStreamName);
+      if (packet_map->at(kNormLandmarksStreamName).IsEmpty()) {
+        Packet empty_packet = packet_map->at(kNormLandmarksStreamName);
+        int64_t timestamp = empty_packet.Timestamp().Value() / kMicroSecondsPerMilliSecond;
+        // result_callback(nullptr, image_packet.Get<Image>(), timestamp);
+        result_callback(nullptr, nullptr, timestamp, nullptr);
+        return;
+      }
+
+      FaceLandmarkerResult result = GetFaceLandmarkerResultFromPacketMap(*packet_map);
+      result_callback(
+          &result,
+          // image_packet.Get<Image>(),
+          nullptr,
+          packet_map->at(kNormLandmarksStreamName).Timestamp().Value() / kMicroSecondsPerMilliSecond,
+          nullptr
+      );
+    };
+  }
+
+  auto cpp_options = std::make_unique<CppFaceLandmarkerOptions>();
+
+  CppConvertToBaseOptions(options->base_options, &cpp_options->base_options);
+  CppConvertToFaceLandmarkerOptions(*options.get(), cpp_options.get());
+  cpp_options->running_mode = static_cast<core::RunningMode>(options->running_mode);
+
+  auto options_proto = ConvertFaceLandmarkerGraphOptionsProto(options.get());
+  CalculatorGraphConfig config = CreateGraphConfig(
+          std::move(options_proto), options->output_face_blendshapes,
+          options->output_facial_transformation_matrixes,
+          options->running_mode == RunningMode::LIVE_STREAM);
+
+  return core::VisionTaskApiFactory::Create<FaceLandmarker, FaceLandmarkerGraphOptionsProto>(
+      config,
+      std::move(cpp_options->base_options.op_resolver), 
+      cpp_options->running_mode,
+      std::move(packets_callback),
+      /*disable_default_service=*/
+      cpp_options->base_options.disable_default_service);
+}
+
+absl::StatusOr<FaceLandmarkerResult> FaceLandmarker::Detect(mediapipe::Image image, std::optional<ImageProcessingOptions> image_processing_options) {
+  std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+  if (image_processing_options.has_value()) {
+    cpp_image_processing_options.emplace();
+    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+  }
+  
+  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect, ConvertToNormalizedRect(cpp_image_processing_options, image, /*roi_allowed=*/false));
+  MP_ASSIGN_OR_RETURN(
+      auto output_packets,
+      ProcessImageData(
+          {{kImageInStreamName, MakePacket<Image>(std::move(image))},
+           {kNormRectStreamName, MakePacket<NormalizedRect>(std::move(norm_rect))}}));
+  if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
+    return {FaceLandmarkerResult()};
+  }
+  return GetFaceLandmarkerResultFromPacketMap(output_packets);
+}
+
+absl::StatusOr<FaceLandmarkerResult> FaceLandmarker::DetectForVideo(
+    mediapipe::Image image, int64_t timestamp_ms,
+    std::optional<ImageProcessingOptions> image_processing_options) {
+
+      std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+  if (image_processing_options.has_value()) {
+    cpp_image_processing_options.emplace();
+    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+  }
+
+  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
+                      ConvertToNormalizedRect(cpp_image_processing_options, image,
+                                              /*roi_allowed=*/false));
+  MP_ASSIGN_OR_RETURN(
+      auto output_packets,
+      ProcessVideoData(
+          {{kImageInStreamName,
+            MakePacket<Image>(std::move(image))
+                .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
+           {kNormRectStreamName,
+            MakePacket<NormalizedRect>(std::move(norm_rect))
+                .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}}));
+  if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
+    return {FaceLandmarkerResult()};
+  }
+  return GetFaceLandmarkerResultFromPacketMap(output_packets);
+}
+
+absl::Status FaceLandmarker::DetectAsync(
+    mediapipe::Image image, int64_t timestamp_ms,
+    std::optional<ImageProcessingOptions> image_processing_options) {
+
+      std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+  if (image_processing_options.has_value()) {
+    cpp_image_processing_options.emplace();
+    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+  }
+
+  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
+                      ConvertToNormalizedRect(cpp_image_processing_options, image,
+                                              /*roi_allowed=*/false));
+  return SendLiveStreamData(
+      {{kImageInStreamName,
+        MakePacket<Image>(std::move(image))
+            .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
+       {kNormRectStreamName,
+        MakePacket<NormalizedRect>(std::move(norm_rect))
+            .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}});
+}
+
+}  // namespace libmptask

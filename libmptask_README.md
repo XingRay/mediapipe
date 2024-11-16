@@ -66,8 +66,8 @@ $env:HTTP_PROXY = "http://127.0.0.1:10809"
 
 build:
 
-```
-bazel --output_user_root=bazel_out build -c opt --cxxopt="/utf-8" --define MEDIAPIPE_DISABLE_GPU=1 mediapipe/tasks/libmptask/vision/face_landmarker:face_landmarker.dll
+```shell
+bazel --output_user_root=bazel_out build --experimental_convenience_symlinks=ignore --repository_cache="D:/develop/bazel/cache" -c opt --cxxopt="/utf-8" --define MEDIAPIPE_DISABLE_GPU=1 mediapipe/tasks/libmptask/vision/face_landmarker:face_landmarker.dll
 ```
 
 Compiling mediapipe/tasks/cc/vision/custom_ops/fused_batch_norm.cc;

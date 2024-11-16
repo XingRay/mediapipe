@@ -35,6 +35,16 @@ cc_library(
 )
 
 cc_library(
+    name = "rect_converter",
+    srcs = ["rect_converter.cc"],
+    hdrs = ["rect_converter.h"],
+    deps = [
+        "//mediapipe/tasks/libmptask/components/containers:rect",
+        "//mediapipe/tasks/cc/components/containers:rect",
+    ],
+)
+
+cc_library(
     name = "category",
     srcs = [],
     hdrs = ["category.h"],
@@ -44,11 +54,32 @@ cc_library(
 )
 
 cc_library(
+    name = "category_converter",
+    srcs = ["category_converter.cc"],
+    hdrs = ["category_converter.h"],
+    deps = [
+        "//mediapipe/tasks/libmptask/components/containers:category",
+        "//mediapipe/framework/formats:classification_cc_proto",
+    ],
+)
+
+cc_library(
     name = "classification_result",
     srcs = [],
     hdrs = ["classification_result.h"],
     deps = [
         ":category",
+    ],
+)
+
+cc_library(
+    name = "classification_result_converter",
+    srcs = ["classification_result_converter.cc"],
+    hdrs = ["classification_result_converter.h"],
+    deps = [
+        "//mediapipe/tasks/libmptask/components/containers:classification_result",
+        "//mediapipe/tasks/cc/components/containers:classification_result",
+        "//mediapipe/tasks/libmptask/components/containers:category_converter",
     ],
 )
 
@@ -82,10 +113,31 @@ cc_library(
 )
 
 cc_library(
+    name = "landmark_converter",
+    srcs = ["landmark_converter.cc"],
+    hdrs = ["landmark_converter.h"],
+    deps = [
+        ":landmark",
+        "//mediapipe/tasks/libmptask/components/containers:classification_result_converter",
+        "//mediapipe/framework/formats:landmark_cc_proto"
+    ],
+)
+
+cc_library(
     name = "matrix",
-    srcs = [],
+    srcs = ["matrix.cc"],
     hdrs = ["matrix.h"],
     deps = [
-        "@eigen_archive//:eigen3",
+        "//mediapipe/tasks/libmptask/utils:cpp_export",
+    ],
+)
+
+cc_library(
+    name = "matrix_converter",
+    srcs = ["matrix_converter.cc"],
+    hdrs = ["matrix_converter.h"],
+    deps = [
+        ":matrix",
+        "//mediapipe/framework/formats:matrix_data_cc_proto"
     ],
 )

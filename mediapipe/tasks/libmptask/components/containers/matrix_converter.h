@@ -13,20 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_CONVERTER_H_
-#define MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_CONVERTER_H_
+#ifndef MEDIAPIPE_TASKS_C_COMPONENTS_CONTAINERS_MATRIX_CONVERTER_H_
+#define MEDIAPIPE_TASKS_C_COMPONENTS_CONTAINERS_MATRIX_CONVERTER_H_
 
-#include "mediapipe/tasks/libmptask/core/base_options.h"
-#include "mediapipe/tasks/cc/core/base_options.h"
-#include "mediapipe/tasks/cc/core/proto/base_options.pb.h"
+#include "mediapipe/tasks/libmptask/components/containers/matrix.h"
+#include "mediapipe/framework/formats/matrix_data.pb.h"
 
 namespace libmptask {
 
-void CppConvertToBaseOptions(const BaseOptions& in,
-                             mediapipe::tasks::core::BaseOptions* out);
-
-mediapipe::tasks::core::proto::BaseOptions baseOptionsConvertToProto(BaseOptions* base_options);
+void MatrixFromMatrixDataProto(const ::mediapipe::MatrixData& matrix_data, Matrix* matrix);
 
 }  // namespace libmptask
 
-#endif  // MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_H_
+#endif  // MEDIAPIPE_TASKS_C_COMPONENTS_CONTAINERS_MATRIX_CONVERTER_H_

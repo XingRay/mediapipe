@@ -87,25 +87,40 @@ LIB_DEPS = [
     "//mediapipe/tasks/libmptask/components/containers:rect",
     "//mediapipe/tasks/libmptask/components/containers:category",
     "//mediapipe/tasks/libmptask/components/containers:classification_result",
+    "//mediapipe/tasks/libmptask/components/containers:classification_result_converter",
     "//mediapipe/tasks/libmptask/components/containers:detection_result",
     "//mediapipe/tasks/libmptask/components/containers:embedding_result",
     "//mediapipe/tasks/libmptask/components/containers:landmark",
+    "//mediapipe/tasks/libmptask/components/containers:landmark_converter",
     "//mediapipe/tasks/libmptask/components/containers:matrix",
+    "//mediapipe/tasks/libmptask/components/containers:matrix_converter",
 
     "//mediapipe/tasks/libmptask/core:base_options",
     "//mediapipe/tasks/libmptask/core:base_options_converter",
 
+    "//mediapipe/tasks/libmptask/utils:cpp_export",
+
     "//mediapipe/tasks/libmptask/vision/core:common",
     "//mediapipe/tasks/libmptask/vision/core:image_processing_options",
+    "//mediapipe/tasks/libmptask/vision/core:image_processing_options_converter",
+    
     "//mediapipe/tasks/libmptask/vision/utils:image_utils",
 ]
 
 SOURCES = [
+    "face_landmarker_api.cc", 
     "face_landmarker.cc",
+    "face_landmarker_options_converter.cc",
+    "face_landmarker_result_converter.cc",
 ]
 
 HEADERS = [
-    "face_landmarker.h", "face_landmarker_result.h",
+    "face_landmarker_api.h", 
+    "face_landmarker.h", 
+    "face_landmarker_options.h",
+    "face_landmarker_options_converter.h", 
+    "face_landmarker_result.h",
+    "face_landmarker_result_converter.h",
 ]
 
 # windows

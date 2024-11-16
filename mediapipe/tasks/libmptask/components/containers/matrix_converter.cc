@@ -13,20 +13,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_CONVERTER_H_
-#define MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_CONVERTER_H_
-
-#include "mediapipe/tasks/libmptask/core/base_options.h"
-#include "mediapipe/tasks/cc/core/base_options.h"
-#include "mediapipe/tasks/cc/core/proto/base_options.pb.h"
+#include "mediapipe/tasks/libmptask/components/containers/matrix_converter.h"
 
 namespace libmptask {
 
-void CppConvertToBaseOptions(const BaseOptions& in,
-                             mediapipe::tasks::core::BaseOptions* out);
+void MatrixFromMatrixDataProto(const ::mediapipe::MatrixData& matrix_data, Matrix* matrix){
+    const int rows = matrix_data.rows();
+    const int cols = matrix_data.cols();
 
-mediapipe::tasks::core::proto::BaseOptions baseOptionsConvertToProto(BaseOptions* base_options);
+    // 检查数据尺寸是否匹配
+    if (matrix_data.packed_data_size() != rows * cols) {
+        throw std::runtime_error("MatrixData packed_data size does not match rows * cols.");
+    }
 
-}  // namespace libmptask
+    matrix->resize(rows, cols);
+    std::copy(matrix_data.packed_data().begin(), matrix_data.packed_data().end(), matrix->data());
+}
 
-#endif  // MEDIAPIPE_TASKS_C_CORE_BASE_OPTIONS_H_
+}  // namespace mediapipe::tasks::c::components::containers
