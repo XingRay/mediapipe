@@ -54,220 +54,235 @@ using namespace ::mediapipe::tasks::vision;
 
 namespace libmptask {
 
-constexpr char kFaceLandmarkerGraphTypeName[] = "mediapipe.tasks.vision.face_landmarker.FaceLandmarkerGraph";
-constexpr char kImageTag[] = "IMAGE";
-constexpr char kImageInStreamName[] = "image_in";
-constexpr char kImageOutStreamName[] = "image_out";
-constexpr char kNormRectTag[] = "NORM_RECT";
-constexpr char kNormRectStreamName[] = "norm_rect_in";
-constexpr char kNormLandmarksTag[] = "NORM_LANDMARKS";
-constexpr char kNormLandmarksStreamName[] = "norm_landmarks";
-constexpr char kBlendshapesTag[] = "BLENDSHAPES";
-constexpr char kBlendshapesStreamName[] = "blendshapes";
-constexpr char kFaceGeometryTag[] = "FACE_GEOMETRY";
-constexpr char kFaceGeometryStreamName[] = "face_geometry";
-constexpr int kMicroSecondsPerMilliSecond = 1000;
+    constexpr char kFaceLandmarkerGraphTypeName[] = "mediapipe.tasks.vision.face_landmarker.FaceLandmarkerGraph";
+    constexpr char kImageTag[] = "IMAGE";
+    constexpr char kImageInStreamName[] = "image_in";
+    constexpr char kImageOutStreamName[] = "image_out";
+    constexpr char kNormRectTag[] = "NORM_RECT";
+    constexpr char kNormRectStreamName[] = "norm_rect_in";
+    constexpr char kNormLandmarksTag[] = "NORM_LANDMARKS";
+    constexpr char kNormLandmarksStreamName[] = "norm_landmarks";
+    constexpr char kBlendshapesTag[] = "BLENDSHAPES";
+    constexpr char kBlendshapesStreamName[] = "blendshapes";
+    constexpr char kFaceGeometryTag[] = "FACE_GEOMETRY";
+    constexpr char kFaceGeometryStreamName[] = "face_geometry";
+    constexpr int kMicroSecondsPerMilliSecond = 1000;
 
 // Creates a MediaPipe graph config that contains a subgraph node of
 // "mediapipe.tasks.vision.face_ladnamrker.FaceLandmarkerGraph". If the task is
 // running in the live stream mode, a "FlowLimiterCalculator" will be added to
 // limit the number of frames in flight.
-CalculatorGraphConfig CreateGraphConfig(
-    std::unique_ptr<FaceLandmarkerGraphOptionsProto> options,
-    bool output_face_blendshapes, bool output_facial_transformation_matrixes,
-    bool enable_flow_limiting) {
-  api2::builder::Graph graph;
-  auto& subgraph = graph.AddNode(kFaceLandmarkerGraphTypeName);
-  subgraph.GetOptions<FaceLandmarkerGraphOptionsProto>().Swap(options.get());
-  graph.In(kImageTag).SetName(kImageInStreamName);
-  graph.In(kNormRectTag).SetName(kNormRectStreamName);
-  subgraph.Out(kNormLandmarksTag).SetName(kNormLandmarksStreamName) >>
-      graph.Out(kNormLandmarksTag);
-  subgraph.Out(kImageTag).SetName(kImageOutStreamName) >> graph.Out(kImageTag);
-  if (output_face_blendshapes) {
-    subgraph.Out(kBlendshapesTag).SetName(kBlendshapesStreamName) >>
-        graph.Out(kBlendshapesTag);
-  }
-  if (output_facial_transformation_matrixes) {
-    subgraph.Out(kFaceGeometryTag).SetName(kFaceGeometryStreamName) >>
-        graph.Out(kFaceGeometryTag);
-  }
-  if (enable_flow_limiting) {
-    return tasks::core::AddFlowLimiterCalculator(
-        graph, subgraph, {kImageTag, kNormRectTag}, kNormLandmarksTag);
-  }
-  graph.In(kImageTag) >> subgraph.In(kImageTag);
-  graph.In(kNormRectTag) >> subgraph.In(kNormRectTag);
-  return graph.GetConfig();
-}
+    CalculatorGraphConfig CreateGraphConfig(
+            std::unique_ptr<FaceLandmarkerGraphOptionsProto> options,
+            bool output_face_blendshapes, bool output_facial_transformation_matrixes,
+            bool enable_flow_limiting) {
+        api2::builder::Graph graph;
+        auto &subgraph = graph.AddNode(kFaceLandmarkerGraphTypeName);
+        subgraph.GetOptions<FaceLandmarkerGraphOptionsProto>().Swap(options.get());
+        graph.In(kImageTag).SetName(kImageInStreamName);
+        graph.In(kNormRectTag).SetName(kNormRectStreamName);
+        subgraph.Out(kNormLandmarksTag).SetName(kNormLandmarksStreamName) >>
+                                                                          graph.Out(kNormLandmarksTag);
+        subgraph.Out(kImageTag).SetName(kImageOutStreamName) >> graph.Out(kImageTag);
+        if (output_face_blendshapes) {
+            subgraph.Out(kBlendshapesTag).SetName(kBlendshapesStreamName) >>
+                                                                          graph.Out(kBlendshapesTag);
+        }
+        if (output_facial_transformation_matrixes) {
+            subgraph.Out(kFaceGeometryTag).SetName(kFaceGeometryStreamName) >>
+                                                                            graph.Out(kFaceGeometryTag);
+        }
+        if (enable_flow_limiting) {
+            return tasks::core::AddFlowLimiterCalculator(
+                    graph, subgraph, {kImageTag, kNormRectTag}, kNormLandmarksTag);
+        }
+        graph.In(kImageTag) >> subgraph.In(kImageTag);
+        graph.In(kNormRectTag) >> subgraph.In(kNormRectTag);
+        return graph.GetConfig();
+    }
 
 // Converts the user-facing FaceLandmarkerOptions struct to the internal
 // FaceLandmarkerGraphOptions proto.
-std::unique_ptr<FaceLandmarkerGraphOptionsProto> ConvertFaceLandmarkerGraphOptionsProto(FaceLandmarkerOptions* options) {
-  auto options_proto = std::make_unique<FaceLandmarkerGraphOptionsProto>();
-  auto base_options_proto = std::make_unique<tasks::core::proto::BaseOptions>(baseOptionsConvertToProto(&(options->base_options)));
-  options_proto->mutable_base_options()->Swap(base_options_proto.get());
-  options_proto->mutable_base_options()->set_use_stream_mode(options->running_mode != RunningMode::IMAGE);
+    std::unique_ptr<FaceLandmarkerGraphOptionsProto>
+    ConvertFaceLandmarkerGraphOptionsProto(FaceLandmarkerOptions *options) {
+        auto options_proto = std::make_unique<FaceLandmarkerGraphOptionsProto>();
+        auto base_options_proto = std::make_unique<tasks::core::proto::BaseOptions>(
+                baseOptionsConvertToProto(&(options->base_options)));
+        options_proto->mutable_base_options()->Swap(base_options_proto.get());
+        options_proto->mutable_base_options()->set_use_stream_mode(options->running_mode != RunningMode::IMAGE);
 
-  // Configure face detector options.
-  auto* face_detector_graph_options = options_proto->mutable_face_detector_graph_options();
-  face_detector_graph_options->set_num_faces(options->num_faces);
-  face_detector_graph_options->set_min_detection_confidence(
-      options->min_face_detection_confidence);
+        // Configure face detector options.
+        auto *face_detector_graph_options = options_proto->mutable_face_detector_graph_options();
+        face_detector_graph_options->set_num_faces(options->num_faces);
+        face_detector_graph_options->set_min_detection_confidence(
+                options->min_face_detection_confidence);
 
-  // Configure face landmark detector options.
-  options_proto->set_min_tracking_confidence(options->min_tracking_confidence);
-  auto* face_landmarks_detector_graph_options =
-      options_proto->mutable_face_landmarks_detector_graph_options();
-  face_landmarks_detector_graph_options->set_min_detection_confidence(
-      options->min_face_presence_confidence);
+        // Configure face landmark detector options.
+        options_proto->set_min_tracking_confidence(options->min_tracking_confidence);
+        auto *face_landmarks_detector_graph_options =
+                options_proto->mutable_face_landmarks_detector_graph_options();
+        face_landmarks_detector_graph_options->set_min_detection_confidence(
+                options->min_face_presence_confidence);
 
-  return options_proto;
-}
+        return options_proto;
+    }
 
-FaceLandmarkerResult GetFaceLandmarkerResultFromPacketMap(const tasks::core::PacketMap& packet_map) {
-  const auto& face_landmarks = packet_map.at(kNormLandmarksStreamName).Get<std::vector<NormalizedLandmarkList>>();
-  std::optional<std::vector<ClassificationList>> face_blendshapes;
-  if (packet_map.find(kBlendshapesStreamName) != packet_map.end()) {
-    face_blendshapes = packet_map.at(kBlendshapesStreamName).Get<std::vector<ClassificationList>>();
-  }
-  std::optional<std::vector<MatrixData>> matrix_data_list;
-  if (packet_map.find(kFaceGeometryStreamName) != packet_map.end()) {
-    const auto& face_geometry_list = packet_map.at(kFaceGeometryStreamName).Get<std::vector<face_geometry::proto::FaceGeometry>>();
-    matrix_data_list = std::vector<MatrixData>(face_geometry_list.size());
-    std::transform(face_geometry_list.begin(), face_geometry_list.end(),
-                   matrix_data_list->begin(),
-                   [](const face_geometry::proto::FaceGeometry& face_geometry) {
-                     return face_geometry.pose_transform_matrix();
-                   });
-  }
-  return ConvertToFaceLandmarkerResult(
-      /* face_landmarks_proto = */ face_landmarks,
-      /* face_blendshapes_proto= */ face_blendshapes,
-      /* facial_transformation_matrixes_proto= */ matrix_data_list);
-}
+    FaceLandmarkerResult GetFaceLandmarkerResultFromPacketMap(const tasks::core::PacketMap &packet_map) {
+        const auto &face_landmarks = packet_map.at(kNormLandmarksStreamName).Get<std::vector<NormalizedLandmarkList>>();
+        std::optional<std::vector<ClassificationList>> face_blendshapes;
+        if (packet_map.find(kBlendshapesStreamName) != packet_map.end()) {
+            face_blendshapes = packet_map.at(kBlendshapesStreamName).Get<std::vector<ClassificationList>>();
+        }
+        std::optional<std::vector<MatrixData>> matrix_data_list;
+        if (packet_map.find(kFaceGeometryStreamName) != packet_map.end()) {
+            const auto &face_geometry_list = packet_map.at(
+                    kFaceGeometryStreamName).Get<std::vector<face_geometry::proto::FaceGeometry>>();
+            matrix_data_list = std::vector<MatrixData>(face_geometry_list.size());
+            std::transform(face_geometry_list.begin(), face_geometry_list.end(),
+                           matrix_data_list->begin(),
+                           [](const face_geometry::proto::FaceGeometry &face_geometry) {
+                               return face_geometry.pose_transform_matrix();
+                           });
+        }
+        return ConvertToFaceLandmarkerResult(
+                /* face_landmarks_proto = */ face_landmarks,
+                /* face_blendshapes_proto= */ face_blendshapes,
+                /* facial_transformation_matrixes_proto= */ matrix_data_list);
+    }
 
-absl::StatusOr<std::unique_ptr<FaceLandmarker>> FaceLandmarker::Create(std::unique_ptr<FaceLandmarkerOptions> options) {
-  tasks::core::PacketsCallback packets_callback = nullptr;
-  if (options->result_callback) {
-    auto result_callback = options->result_callback;
-    packets_callback = [=](absl::StatusOr<tasks::core::PacketMap> packet_map) {
-      if (!packet_map.ok()) {
-        result_callback(nullptr, nullptr, Timestamp::Unset().Value(), nullptr);
-        return;
-      }
-      if (packet_map->at(kImageOutStreamName).IsEmpty()) {
-        // output is empty, do nothing
-        return;
-      }
-      Packet image_packet = packet_map->at(kImageOutStreamName);
-      if (packet_map->at(kNormLandmarksStreamName).IsEmpty()) {
-        Packet empty_packet = packet_map->at(kNormLandmarksStreamName);
-        int64_t timestamp = empty_packet.Timestamp().Value() / kMicroSecondsPerMilliSecond;
-        // result_callback(nullptr, image_packet.Get<Image>(), timestamp);
-        result_callback(nullptr, nullptr, timestamp, nullptr);
-        return;
-      }
+    absl::StatusOr<std::unique_ptr<FaceLandmarker>>
+    FaceLandmarker::Create(std::unique_ptr<FaceLandmarkerOptions> options) {
+        tasks::core::PacketsCallback packets_callback = nullptr;
+        if (options->result_callback) {
+            auto result_callback = options->result_callback;
+            packets_callback = [=](absl::StatusOr<tasks::core::PacketMap> packet_map) {
+                if (!packet_map.ok()) {
+                    result_callback(nullptr, nullptr, Timestamp::Unset().Value(), nullptr);
+                    return;
+                }
+                if (packet_map->at(kImageOutStreamName).IsEmpty()) {
+                    // output is empty, do nothing
+                    return;
+                }
+                Packet image_packet = packet_map->at(kImageOutStreamName);
+                if (packet_map->at(kNormLandmarksStreamName).IsEmpty()) {
+                    Packet empty_packet = packet_map->at(kNormLandmarksStreamName);
+                    int64_t timestamp = empty_packet.Timestamp().Value() / kMicroSecondsPerMilliSecond;
+                    // result_callback(nullptr, image_packet.Get<Image>(), timestamp);
+                    result_callback(nullptr, nullptr, timestamp, nullptr);
+                    return;
+                }
 
-      FaceLandmarkerResult result = GetFaceLandmarkerResultFromPacketMap(*packet_map);
-      result_callback(
-          &result,
-          // image_packet.Get<Image>(),
-          nullptr,
-          packet_map->at(kNormLandmarksStreamName).Timestamp().Value() / kMicroSecondsPerMilliSecond,
-          nullptr
-      );
-    };
-  }
+                FaceLandmarkerResult result = GetFaceLandmarkerResultFromPacketMap(*packet_map);
 
-  auto cpp_options = std::make_unique<CppFaceLandmarkerOptions>();
+                Image image = image_packet.Get<Image>();
+                const auto &image_frame = image.GetImageFrameSharedPtr();
+                MpImage mp_image;
+                mp_image.type = MpImage::IMAGE_FRAME,
+                mp_image.image_frame.format = static_cast<ImageFormat>(static_cast<int>(image_frame->Format()));
+                mp_image.image_frame.image_buffer = image_frame->PixelData();
+                mp_image.image_frame.width = image_frame->Width();
+                mp_image.image_frame.height = image_frame->Height();
 
-  CppConvertToBaseOptions(options->base_options, &cpp_options->base_options);
-  CppConvertToFaceLandmarkerOptions(*options.get(), cpp_options.get());
-  cpp_options->running_mode = static_cast<core::RunningMode>(options->running_mode);
+                result_callback(
+                        &result,
+                        &mp_image,
+                        packet_map->at(kNormLandmarksStreamName).Timestamp().Value() / kMicroSecondsPerMilliSecond,
+                        nullptr
+                );
+            };
+        }
 
-  auto options_proto = ConvertFaceLandmarkerGraphOptionsProto(options.get());
-  CalculatorGraphConfig config = CreateGraphConfig(
-          std::move(options_proto), options->output_face_blendshapes,
-          options->output_facial_transformation_matrixes,
-          options->running_mode == RunningMode::LIVE_STREAM);
+        auto cpp_options = std::make_unique<CppFaceLandmarkerOptions>();
 
-  return core::VisionTaskApiFactory::Create<FaceLandmarker, FaceLandmarkerGraphOptionsProto>(
-      config,
-      std::move(cpp_options->base_options.op_resolver), 
-      cpp_options->running_mode,
-      std::move(packets_callback),
-      /*disable_default_service=*/
-      cpp_options->base_options.disable_default_service);
-}
+        CppConvertToBaseOptions(options->base_options, &cpp_options->base_options);
+        CppConvertToFaceLandmarkerOptions(*options.get(), cpp_options.get());
+        cpp_options->running_mode = static_cast<core::RunningMode>(options->running_mode);
 
-absl::StatusOr<FaceLandmarkerResult> FaceLandmarker::Detect(mediapipe::Image image, std::optional<ImageProcessingOptions> image_processing_options) {
-  std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
-  if (image_processing_options.has_value()) {
-    cpp_image_processing_options.emplace();
-    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
-  }
-  
-  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect, ConvertToNormalizedRect(cpp_image_processing_options, image, /*roi_allowed=*/false));
-  MP_ASSIGN_OR_RETURN(
-      auto output_packets,
-      ProcessImageData(
-          {{kImageInStreamName, MakePacket<Image>(std::move(image))},
-           {kNormRectStreamName, MakePacket<NormalizedRect>(std::move(norm_rect))}}));
-  if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
-    return {FaceLandmarkerResult()};
-  }
-  return GetFaceLandmarkerResultFromPacketMap(output_packets);
-}
+        auto options_proto = ConvertFaceLandmarkerGraphOptionsProto(options.get());
+        CalculatorGraphConfig config = CreateGraphConfig(
+                std::move(options_proto), options->output_face_blendshapes,
+                options->output_facial_transformation_matrixes,
+                options->running_mode == RunningMode::LIVE_STREAM);
 
-absl::StatusOr<FaceLandmarkerResult> FaceLandmarker::DetectForVideo(
-    mediapipe::Image image, int64_t timestamp_ms,
-    std::optional<ImageProcessingOptions> image_processing_options) {
+        return core::VisionTaskApiFactory::Create<FaceLandmarker, FaceLandmarkerGraphOptionsProto>(
+                config,
+                std::move(cpp_options->base_options.op_resolver),
+                cpp_options->running_mode,
+                std::move(packets_callback),
+                /*disable_default_service=*/
+                cpp_options->base_options.disable_default_service);
+    }
 
-      std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
-  if (image_processing_options.has_value()) {
-    cpp_image_processing_options.emplace();
-    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
-  }
+    absl::StatusOr<FaceLandmarkerResult>
+    FaceLandmarker::Detect(mediapipe::Image image, std::optional<ImageProcessingOptions> image_processing_options) {
+        std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+        if (image_processing_options.has_value()) {
+            cpp_image_processing_options.emplace();
+            cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+        }
 
-  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
-                      ConvertToNormalizedRect(cpp_image_processing_options, image,
-                                              /*roi_allowed=*/false));
-  MP_ASSIGN_OR_RETURN(
-      auto output_packets,
-      ProcessVideoData(
-          {{kImageInStreamName,
-            MakePacket<Image>(std::move(image))
-                .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
-           {kNormRectStreamName,
-            MakePacket<NormalizedRect>(std::move(norm_rect))
-                .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}}));
-  if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
-    return {FaceLandmarkerResult()};
-  }
-  return GetFaceLandmarkerResultFromPacketMap(output_packets);
-}
+        MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
+                            ConvertToNormalizedRect(cpp_image_processing_options, image, /*roi_allowed=*/false));
+        MP_ASSIGN_OR_RETURN(
+                auto output_packets,
+                ProcessImageData(
+                        {{kImageInStreamName,  MakePacket<Image>(std::move(image))},
+                         {kNormRectStreamName, MakePacket<NormalizedRect>(std::move(norm_rect))}}));
+        if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
+            return {FaceLandmarkerResult()};
+        }
+        return GetFaceLandmarkerResultFromPacketMap(output_packets);
+    }
 
-absl::Status FaceLandmarker::DetectAsync(
-    mediapipe::Image image, int64_t timestamp_ms,
-    std::optional<ImageProcessingOptions> image_processing_options) {
+    absl::StatusOr<FaceLandmarkerResult> FaceLandmarker::DetectForVideo(
+            mediapipe::Image image, int64_t timestamp_ms,
+            std::optional<ImageProcessingOptions> image_processing_options) {
 
-      std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
-  if (image_processing_options.has_value()) {
-    cpp_image_processing_options.emplace();
-    cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
-  }
+        std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+        if (image_processing_options.has_value()) {
+            cpp_image_processing_options.emplace();
+            cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+        }
 
-  MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
-                      ConvertToNormalizedRect(cpp_image_processing_options, image,
-                                              /*roi_allowed=*/false));
-  return SendLiveStreamData(
-      {{kImageInStreamName,
-        MakePacket<Image>(std::move(image))
-            .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
-       {kNormRectStreamName,
-        MakePacket<NormalizedRect>(std::move(norm_rect))
-            .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}});
-}
+        MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
+                            ConvertToNormalizedRect(cpp_image_processing_options, image,
+                                    /*roi_allowed=*/false));
+        MP_ASSIGN_OR_RETURN(
+                auto output_packets,
+                ProcessVideoData(
+                        {{kImageInStreamName,
+                                 MakePacket<Image>(std::move(image))
+                                         .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
+                         {kNormRectStreamName,
+                                 MakePacket<NormalizedRect>(std::move(norm_rect))
+                                         .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}}));
+        if (output_packets[kNormLandmarksStreamName].IsEmpty()) {
+            return {FaceLandmarkerResult()};
+        }
+        return GetFaceLandmarkerResultFromPacketMap(output_packets);
+    }
+
+    absl::Status FaceLandmarker::DetectAsync(
+            mediapipe::Image image, int64_t timestamp_ms,
+            std::optional<ImageProcessingOptions> image_processing_options) {
+
+        std::optional<::mediapipe::tasks::vision::core::ImageProcessingOptions> cpp_image_processing_options;
+        if (image_processing_options.has_value()) {
+            cpp_image_processing_options.emplace();
+            cppConvertImageProcessingOptions(image_processing_options.value(), &cpp_image_processing_options.value());
+        }
+
+        MP_ASSIGN_OR_RETURN(NormalizedRect norm_rect,
+                            ConvertToNormalizedRect(cpp_image_processing_options, image,
+                                    /*roi_allowed=*/false));
+        return SendLiveStreamData(
+                {{kImageInStreamName,
+                         MakePacket<Image>(std::move(image))
+                                 .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))},
+                 {kNormRectStreamName,
+                         MakePacket<NormalizedRect>(std::move(norm_rect))
+                                 .At(Timestamp(timestamp_ms * kMicroSecondsPerMilliSecond))}});
+    }
 
 }  // namespace libmptask

@@ -178,8 +178,7 @@ absl::StatusOr<std::unique_ptr<FaceLandmarker>> FaceLandmarker::Create(
       result_callback(
           GetFaceLandmarkerResultFromPacketMap(*packet_map),
           image_packet.Get<Image>(),
-          packet_map->at(kNormLandmarksStreamName).Timestamp().Value() /
-              kMicroSecondsPerMilliSecond);
+          packet_map->at(kNormLandmarksStreamName).Timestamp().Value() / kMicroSecondsPerMilliSecond);
     };
   }
   return core::VisionTaskApiFactory::Create<FaceLandmarker,

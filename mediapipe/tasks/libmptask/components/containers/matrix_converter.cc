@@ -21,7 +21,6 @@ void MatrixFromMatrixDataProto(const ::mediapipe::MatrixData& matrix_data, Matri
     const int rows = matrix_data.rows();
     const int cols = matrix_data.cols();
 
-    // 检查数据尺寸是否匹配
     if (matrix_data.packed_data_size() != rows * cols) {
         throw std::runtime_error("MatrixData packed_data size does not match rows * cols.");
     }
