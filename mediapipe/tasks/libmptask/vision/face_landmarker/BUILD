@@ -148,16 +148,15 @@ cc_binary(
 
 # android
 cc_binary(
+    name = "face_landmarker_android.so",
     target_compatible_with = [
         "@platforms//os:android",
     ],
-    name = "face_landmarker_android.so",
     deps = [":face_landmarker_android"],
     data = BIN_DATA,
     linkopts = ["-Wl,-soname,face_landmarker_android.so"],
     linkshared = 1, ## Very important
 )
-
 
 cc_library(
     target_compatible_with = [
@@ -185,10 +184,10 @@ cc_library(
 )
 
 cc_library(
+    name = "face_landmarker_android",
     target_compatible_with = [
         "@platforms//os:android",
     ],
-    name = "face_landmarker_android",
     srcs = SOURCES,
     hdrs = HEADERS,
     visibility = ["//visibility:public"],

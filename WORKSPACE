@@ -814,3 +814,14 @@ http_archive(
     strip_prefix = "abseil-py-1.4.0",
     urls = ["https://github.com/abseil/abseil-py/archive/refs/tags/v1.4.0.tar.gz"],
 )
+
+android_sdk_repository(
+    name = "androidsdk", # Required. Name *must* be "androidsdk".
+    path = "D:/develop/android/sdk", # Optional. Can be omitted if `ANDROID_HOME` environment variable is set.
+)
+
+android_ndk_repository(
+    name = "androidndk", # Required. Name *must* be "androidndk".
+    path = "D:/develop/android/sdk/ndk/21.4.7075529", # Optional. Can be omitted if `ANDROID_NDK_HOME` environment variable is set.
+    api_level=21,
+)
