@@ -567,11 +567,20 @@ cc_library(
         "//mediapipe/framework/formats:ahwb_view",
         "//mediapipe/framework/formats:hardware_buffer",
         "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/formats:shared_fd",
+        "//mediapipe/framework/formats:unique_fd",
         "//mediapipe/framework/port:ret_check",
+        "//mediapipe/util:sync_wait",
         "//third_party/GL:EGL_headers",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/strings:str_format",
-    ],
+    ] + select({
+        "//conditions:default": [],
+        "//mediapipe:android": [
+            ":egl_sync",
+            ":egl_sync_point",
+        ],
+    }),
 )
 
 mediapipe_proto_library(
@@ -872,10 +881,10 @@ cc_library(
         ":egl_base",
         ":egl_errors",
         "//mediapipe/framework/deps:no_destructor",
+        "//mediapipe/framework/formats:shared_fd",
         "//mediapipe/framework/formats:unique_fd",
         "//mediapipe/framework/port:ret_check",
         "//mediapipe/framework/port:status",
-        "//mediapipe/framework/profiler:perfetto_profiling",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
@@ -1372,13 +1381,24 @@ mediapipe_cc_test(
     ],
     requires_full_emulation = True,
     deps = [
+        ":egl_sync",
         ":gl_texture_buffer",
         ":gl_texture_util",
+        ":gl_texture_view",
         ":gpu_buffer_format",
         ":gpu_buffer_storage_ahwb",
         ":gpu_test_base",
+        "//mediapipe/framework:port",
+        "//mediapipe/framework/formats:ahwb_view",
+        "//mediapipe/framework/formats:hardware_buffer",
+        "//mediapipe/framework/formats:image_frame",
+        "//mediapipe/framework/formats:shared_fd",
+        "//mediapipe/framework/formats:unique_fd",
         "//mediapipe/framework/port:gtest_main",
         "//mediapipe/framework/tool:test_util",
+        "//mediapipe/util:sync_wait",
+        "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/time",
     ],
 )
 

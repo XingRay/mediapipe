@@ -37,10 +37,12 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/time.h"
 #include "mediapipe/framework/calculator.pb.h"
 #include "mediapipe/framework/calculator_base.h"
 #include "mediapipe/framework/counter_factory.h"
 #include "mediapipe/framework/delegating_executor.h"
+#include "mediapipe/framework/deps/clock.h"
 #include "mediapipe/framework/executor.h"
 #include "mediapipe/framework/graph_output_stream.h"
 #include "mediapipe/framework/graph_service_manager.h"
@@ -76,6 +78,7 @@
 #include "mediapipe/framework/tool/validate.h"
 #include "mediapipe/framework/tool/validate_name.h"
 #include "mediapipe/framework/validated_graph_config.h"
+#include "mediapipe/framework/vlog_overrides.h"
 #include "mediapipe/gpu/gpu_service.h"
 #include "mediapipe/gpu/graph_support.h"
 #include "mediapipe/util/cpu_util.h"
@@ -145,6 +148,7 @@ CalculatorGraph::CalculatorGraph(CalculatorContext* cc)
     // TODO b/368015341- Use factory method to avoid CHECK in constructor.
     ABSL_CHECK_OK(DisallowServiceDefaultInitialization());
   }
+  SetVLogOverrides();
 }
 
 CalculatorGraph::CalculatorGraph(CalculatorGraphConfig config)
@@ -910,6 +914,17 @@ absl::Status CalculatorGraph::WaitUntilDone() {
 
 absl::Status CalculatorGraph::WaitForObservedOutput() {
   return scheduler_.WaitForObservedOutput();
+}
+
+absl::StatusOr<GraphRuntimeInfo> CalculatorGraph::GetGraphRuntimeInfo() {
+  RET_CHECK(initialized_);
+  GraphRuntimeInfo info;
+  for (const auto& node : nodes_) {
+    *info.add_calculator_infos() = node->GetStreamMonitoringInfo();
+  }
+  const absl::Time time_now = mediapipe::Clock::RealClock()->TimeNow();
+  info.set_capture_time_unix_us(absl::ToUnixMicros(time_now));
+  return info;
 }
 
 absl::Status CalculatorGraph::AddPacketToInputStream(

@@ -130,6 +130,7 @@ cc_library(
     deps = [
         ":hardware_buffer",
         "//mediapipe/framework:port",
+        "//mediapipe/framework/formats:shared_fd",
         "//mediapipe/gpu:gpu_buffer_storage",
     ],
 )
@@ -318,6 +319,28 @@ cc_test(
         ":unique_fd",
         "//mediapipe/framework/port:gtest_main",
         "//mediapipe/framework/port:status_matchers",
+        "//mediapipe/util:fd_test_util",
+    ],
+)
+
+cc_library(
+    name = "shared_fd",
+    hdrs = ["shared_fd.h"],
+    deps = [
+        ":unique_fd",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "shared_fd_test",
+    srcs = ["shared_fd_test.cc"],
+    deps = [
+        ":shared_fd",
+        ":unique_fd",
+        "//mediapipe/framework/port:gtest_main",
+        "//mediapipe/framework/port:status_matchers",
+        "//mediapipe/util:fd_test_util",
     ],
 )
 
@@ -663,5 +686,15 @@ cc_test(
         ":tensor_ahwb_usage",
         "//mediapipe/framework/port:gtest_main",
         "//mediapipe/framework/port:status",
+    ],
+)
+
+cc_test(
+    name = "yuv_image_test",
+    srcs = ["yuv_image_test.cc"],
+    deps = [
+        ":yuv_image",
+        "//mediapipe/framework/port:gtest_main",
+        "@libyuv",
     ],
 )
