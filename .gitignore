@@ -10,3 +10,4 @@ bazel_out
 .idea
 .clwb
 .vscode
+.bazel_out
