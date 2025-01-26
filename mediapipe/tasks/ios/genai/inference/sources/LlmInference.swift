@@ -65,6 +65,8 @@ import MediaPipeTasksGenAIC
         try options.supportedLoraRanks.withUnsafeMutableBufferPointer { supportedLoraRanks in
           let modelSetting = LlmModelSettings(
             model_path: modelPath,
+            vision_encoder_path: nil,
+            vision_adapter_path: nil,
             cache_dir: cacheDirectory,
             max_num_tokens: options.maxTokens,
             num_decode_steps_per_sync: numberOfDecodeStepsPerSync,
@@ -74,7 +76,8 @@ import MediaPipeTasksGenAIC
             max_top_k: options.maxTopk,
             llm_activation_data_type: kLlmActivationDataTypeDefault,
             num_draft_tokens: 0,
-            wait_for_weight_uploads: options.waitForWeightUploads)
+            wait_for_weight_uploads: options.waitForWeightUploads,
+            use_submodel: options.useSubmodel)
           return try LlmTaskRunner(modelSettings: modelSetting)
         }
       }
@@ -227,7 +230,7 @@ extension LlmInference {
     /// Maximum top k, which is the max Top-K value supported for all sessions created with the
     /// `LlmInference`, used by GPU only. If a session with Top-K value larger than this is being
     /// asked to be created, it will be rejected(throw error). A value of 1 means only greedy
-    // decoding is supported for any sessions created with this `LlmInference`. Default value is 40.
+    /// decoding is supported for any sessions created with this `LlmInference`. Default value is 40.
     @objc public var maxTopk: Int = 40
 
     /// The supported lora ranks for the base model. Used by GPU only.
@@ -237,6 +240,9 @@ extension LlmInference {
     /// may finish before weights have finished uploading which might push some of the weight upload
     /// time into input processing.
     @objc public var waitForWeightUploads: Bool = false
+
+    /// Whether to use the submodel if available.
+    @objc public var useSubmodel: Bool = false
 
     /// Creates a new instance of `Options` with the given `modelPath` and default values of
     /// `maxTokens`, `maxTopk`, `supportedLoraRanks`.

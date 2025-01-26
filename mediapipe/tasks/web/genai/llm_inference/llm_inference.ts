@@ -737,42 +737,51 @@ export class LlmInference extends TaskRunner {
    * current LLM Inference task.
    *
    * @export
-   * @param modelAsset The URL to the model or the ArrayBuffer of the model
-   *     content.
+   * @param modelAsset The URL to the model, Blob or the ArrayBuffer of the
+   *     model content.
    * @return A loaded LoRA model.
    */
   async loadLoraModel(
-    modelAsset: string | Uint8Array,
+    modelAsset: string | Uint8Array | Blob,
   ): Promise<LoraModel> {
     if (this.isProcessing) {
       throw new Error('Cannot load LoRA model while loading or processing.');
     }
     this.isProcessing = true;
-    const wasmFileReference =
-      modelAsset instanceof Uint8Array
-        ? WasmFileReference.loadFromArray(
-            this.graphRunner.wasmModule,
-            modelAsset,
-          )
-        : await WasmFileReference.loadFromUrl(
-            this.graphRunner.wasmModule,
-            modelAsset,
-          );
+    let wasmFileReference: WasmFileReference;
+    if (modelAsset instanceof Uint8Array) {
+      wasmFileReference = WasmFileReference.loadFromArray(
+        this.graphRunner.wasmModule,
+        modelAsset,
+      );
+    } else if (modelAsset instanceof Blob) {
+      wasmFileReference = await WasmFileReference.loadFromBlob(
+        this.graphRunner.wasmModule,
+        modelAsset,
+      );
+    } else {
+      wasmFileReference = await WasmFileReference.loadFromUrl(
+        this.graphRunner.wasmModule,
+        modelAsset,
+      );
+    }
     const loraModel = new LoraModel(this);
+    const syntheticTimestamp = this.getSynctheticTimestamp();
     (
       this.graphRunner as unknown as LlmGraphRunner
     ).addWasmFileReferenceToStream(
       wasmFileReference,
       LORA_MODEL_REF_INPUT_STREAM,
-      this.getSynctheticTimestamp(),
+      syntheticTimestamp,
     );
     this.graphRunner.addUintToStream(
       loraModel.loraModelId,
       LORA_MODEL_ID_TO_LOAD_INPUT_STREAM,
-      this.getSynctheticTimestamp(),
+      syntheticTimestamp,
     );
     this.finishProcessing();
     wasmFileReference.free();
+    this.setLatestOutputTimestamp(syntheticTimestamp);
     this.isProcessing = false;
     return loraModel;
   }

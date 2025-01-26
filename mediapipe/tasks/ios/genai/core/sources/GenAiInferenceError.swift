@@ -22,6 +22,8 @@ public enum GenAiInferenceError: Error {
   case failedToInitializeSession(String?)
   case failedToInitializeEngine(String?)
   case failedToAddQueryToSession(String, String?)
+  case failedToPredictSync(String?)
+  case failedToPredictAsync(String?)
   case failedToCloneSession(String?)
 }
 
@@ -35,7 +37,7 @@ extension GenAiInferenceError: LocalizedError {
       return
         """
         Response generation is already in progress. The request in progress may have been \
-        initated on the current session or on one of the sessions created from the `LlmInference` \
+        initiated on the current session or on one of the sessions created from the `LlmInference` \
         that was used to create the current session.
         """
     case .failedToComputeSizeInTokens(let message):
@@ -50,6 +52,12 @@ extension GenAiInferenceError: LocalizedError {
     case .failedToAddQueryToSession(let query, let message):
       let explanation = message.flatMap { $0 } ?? "An internal error occurred."
       return "Failed to add query: \(query) to LlmInference session: \(explanation)"
+    case .failedToPredictSync(let message):
+      let explanation = message.flatMap { $0 } ?? "An internal error occurred."
+      return "Failed to predict sync: \(explanation)"
+    case .failedToPredictAsync(let message):
+      let explanation = message.flatMap { $0 } ?? "An internal error occurred."
+      return "Failed to predict async: \(explanation)"
     case .failedToCloneSession(let message):
       let explanation = message.flatMap { $0 } ?? "An internal error occurred."
       return "Failed to clone LlmInference session: \(explanation)"
@@ -77,8 +85,12 @@ extension GenAiInferenceError: CustomNSError {
       return 4
     case .failedToAddQueryToSession:
       return 5
-    case .failedToCloneSession:
+    case .failedToPredictSync:
       return 6
+    case .failedToPredictAsync:
+      return 7
+    case .failedToCloneSession:
+      return 8
     }
   }
 }
