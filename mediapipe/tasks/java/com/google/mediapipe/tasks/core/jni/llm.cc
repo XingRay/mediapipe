@@ -78,6 +78,17 @@ LlmModelSettings ParseModelSettings(void* bytes, int size) {
   output.num_draft_tokens = 0;
   output.wait_for_weight_uploads = false;
   output.use_submodel = false;
+  switch (input.llm_preferred_backend()) {
+    case LlmModelSettingsProto::DEFAULT:
+      output.preferred_backend = kLlmPreferredBackendDefault;
+      break;
+    case LlmModelSettingsProto::GPU:
+      output.preferred_backend = kLlmPreferredBackendGpu;
+      break;
+    default:
+      output.preferred_backend = kLlmPreferredBackendDefault;
+      break;
+  }
   return output;
 }
 
@@ -88,7 +99,7 @@ LlmSessionConfig ParseSessionConfig(void* bytes, int size) {
   LlmSessionConfig output;
   output.temperature = input.temperature();
   output.topk = input.topk();
-  output.topp = 1.0f;
+  output.topp = input.topp();
   output.random_seed = input.random_seed();
   if (input.has_lora_path()) {
     output.lora_path = strdup(input.lora_path().c_str());
